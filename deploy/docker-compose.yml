@@ -1,0 +1,56 @@
+# docker-compose.yml – Local testing of the RunPod deployment image
+# Simulates RunPod network volume via a local bind mount
+
+services:
+  gobii:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      # Simulates RunPod network volume
+      - gobii-data:/runpod-volume
+    environment:
+      # ── Required ──────────────────────────────────
+      GOBII_RELEASE_ENV: "oss"
+      DEBUG: "0"
+      GOBII_PORT: "3000"
+
+      # ── Database (SQLite on volume) ───────────────
+      GOBII_DB_ENGINE: "sqlite3"
+      GOBII_SQLITE_PATH: "/runpod-volume/data/gobii.db"
+
+      # ── Redis (embedded) ──────────────────────────
+      REDIS_URL: "redis://127.0.0.1:6379/0"
+
+      # ── Browser / Chrome ──────────────────────────
+      BROWSER_HEADLESS: "true"
+
+      # ── Proxy (optional – fill in your values) ────
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      NO_PROXY: "localhost,127.0.0.1"
+      BRIGHT_DATA_TOKEN: ""
+      BRIGHT_DATA_WEB_UNLOCKER_ZONE: ""
+
+      # ── LLM Keys (configure at least one) ─────────
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+
+      # ── Optional: skip LLM bootstrap requirement ──
+      LLM_BOOTSTRAP_OPTIONAL: "true"
+
+    shm_size: 2gb
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/healthz/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  gobii-data:
+    driver: local
